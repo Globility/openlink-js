@@ -1,0 +1,6 @@
+build.tar.gz
+.DS_Store
+build/
+node_modules/
+.idea/
+scratch/

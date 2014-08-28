@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset='utf-8' />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta name="description" content="Converse.js: A chat client for your website" />
+
+    <meta name="viewport" content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0' />
+    <!--<meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, target-densityDpi=device-dpi" />-->
+
+    <!--<link rel="stylesheet" type="text/css" media="screen" href="build/application.css">-->
+    <title>Openlink Demo</title>
+</head>
+
+<body>
+
+<!-- Bootstrap Demo -->
+<div id="gc_navbar" class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="#">Project name</a>
+        </div>
+        <div class="collapse navbar-collapse">
+            <ul class="nav navbar-nav">
+                <li class="active"><a href="#">Home</a></li>
+                <li><a id="about" href="#about">About</a></li>
+                <li><a href="#contact">Contact</a></li>
+            </ul>
+        </div><!--/.nav-collapse -->
+    </div>
+</div>
+<div class="container">
+    <div class="starter-template">
+        <h1>Openlink Demo</h1>
+        <p class="lead">Use this document as a way to quickly start any new project.<br>
+            All you get is this text and a mostly barebones HTML document.</p>
+		Even so, this is the case.
+    </div>
+
+    <h2>Login/Logout</h2>
+    <div id="gc_login_window">
+        <ul class="formfield_wrap">
+            <li class="txtfield_wrap">
+                <input type="text" maxlength="50" value="" id="username" placeholder="Username">
+            </li>
+            <li class="txtfield_wrap">
+                <input type="password" maxlength="50" value="" id="password" placeholder="Password">
+            </li>
+        </ul>
+        <div class="gc_btn_holder"><input type="button" id="gc_signin" value="Sign in"></div>
+    </div>
+    <div id="gc_logout_window" style="display:none;">
+        <div class="gc_btn_holder"><input type="button" id="gc_signout" value="Sign out"></div>
+    </div>
+
+    <h2>Profiles</h2>
+    <div id="gc_profiles">
+        <div class="gc_list" id="gc_profile_list">
+            <ul>
+                <li>No profiles found</li>
+            </ul>
+        </div>
+        <div class="gc_btn_holder"><input type="button" id="gc_get_profiles" value="Get profiles"></div>
+    </div>
+
+    <h2>Interests</h2>
+    <div id="gc_interests">
+        <div class="gc_list" id="gc_interest_list">
+            <ul>
+                <li>No interests found</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Features</h2>
+    <div id="gc_features">
+        <div class="gc_list" id="gc_feature_list">
+            <ul>
+                <li>No features found</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Private Storage</h2>
+
+    <h2>Call Status</h2>
+
+    <h2>Device Status</h2>
+
+</div><!-- /.container -->
+<!-- /Bootstrap Demo -->
+
+<!-- Chat Application -->
+
+<script src="build/application.js"></script>
+
+<!-- Application -->
+<script type="text/javascript">
+    App.start({
+        app: {
+            debug: true,
+            // left, right, bottom
+            position: 'bottom',
+            xmpp_domain: 'loki.gltd.net',
+            xmpp_resource: 'office',
+            username: 'leon',
+            password: 'KittyBitter55',
+            system: 'vmstsp',
+            autologon: true
+        }
+    });
+</script>
+<!-- /Application -->
+
+</body>
+</html>
+
