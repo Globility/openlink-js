@@ -38,11 +38,53 @@ App.connected = function(connection) {
     Session.connection = connection;
     $('#gc_login_window').hide();
     $('#gc_logout_window').show();
+
+    Session.connection.openlink.sendPresence();
+
+    Session.callHandlerId = Session.connection.openlink.addCallHandler(App.callHandler)
+}
+
+App.callHandler = function(callEv, changed) {
+    // do something
+    console.log("CALL HANDLER: " + changed + " callEv: " + JSON.stringify(callEv));
+
+    $('#gc_call_list ul').empty();
+    var calls = Session.connection.openlink.calls;
+    for (var cid in Session.connection.openlink.calls) {
+        var call = calls[cid];
+
+            var callText = '<li>' + call.id + ' - '
+            + call.profile + ' - '
+            + call.interest + ' - '
+            + call.state + ' - '
+            + call.direction;
+//            + calls[cid].caller + ' - '
+//            + calls[cid].called + ' - '
+//
+            if (call.actions.length > 0) {
+                callText += '<ul>';
+                for (var _i = 0; _i < call.actions.length; _i++) {
+                    callText += '<li>Action: ' + call.actions[_i] + '</li>';
+                    console.log("CALL TO ARMS!",call.actions[_i]);
+                }
+                callText += '</ul>';
+            } else {
+                callText += '<ul><li>No actions available</li></ul>';
+            }
+
+            callText += '</li>';
+
+        $('#gc_call_list ul:first').append(callText);
+    }
+
 }
 
 App.disconnected = function() {
     $('#gc_logout_window').hide();
     $('#gc_login_window').show();
+
+    Session.connection.openlink.removeCallHandler(Session.callHandlerId);
+    delete Session.callHandlerId;
 }
 
 $(function() {
@@ -78,16 +120,33 @@ $('#gc_signout').click(function() {
 $('#gc_get_profiles').click(function() {
     $('#gc_profile_list ul').empty();
     $('#gc_profile_list ul').append('<li>Loading profiles</li>');
-    Session.connection.openlink.getProfiles(App.options.app.system + '.' + Session.connection.domain, function(profiles) {
+    Session.connection.openlink.getProfiles(getDefaultSystem(), function(profiles) {
         $('#gc_profile_list ul').empty();
-        for (var elem in profiles) {
-            $('#gc_profile_list ul').append('<li>'
-                + profiles[elem].id + ' - '
-                + profiles[elem].device + ' - '
-                + Object.keys(profiles[elem].actions).length + ' actions' + ' - '
-                + '<a href="#" class="gc_get_interests" id="gc_get_interests_'+ profiles[elem].id +'">Get interests</a>' + ' - '
-                + '<a href="#" class="gc_get_features" id="gc_get_features_'+ profiles[elem].id +'">Get features</a>'
-                + '</li>');
+        for (var profileId in profiles) {
+            var profile = profiles[profileId];
+
+            var profileText = '<li>'
+                + profile.id + ' - '
+                + profile.device + ' - '
+                + '<a href="#" class="gc_get_features" id="gc_get_features_'+ profile.id +'">Get features</a>' + ' - '
+                + '<a href="#" class="gc_get_interests" id="gc_get_interests_'+ profile.id +'">Get interests</a>';
+
+            if (profile.actions.length > 0) {
+                profileText += '<ul>';
+                for (var _i = 0; _i < profile.actions.length; _i++) {
+                    profileText += '<li>Action: '
+                        + profile.actions[_i].id + ' - '
+                        + profile.actions[_i].label
+                        + '</li>';
+                }
+                profileText += '</ul>';
+            } else {
+                profileText += '<ul><li>No actions found</li></ul>';
+            }
+
+            profileText += '</li>';
+
+            $('#gc_profiles ul:first').append(profileText);
         }
     });
 });
@@ -103,7 +162,7 @@ $('#gc_profiles').on('click', 'a.gc_get_interests', function(e) {
 function getInterestsClick(profileId) {
     $('#gc_interest_list ul').empty();
     $('#gc_interest_list ul').append('<li>Loading interests</li>');
-    Session.connection.openlink.getInterests(App.options.app.system + '.' + Session.connection.domain, profileId, function(interests) {
+    Session.connection.openlink.getInterests(getDefaultSystem() , profileId, function(interests) {
         $('#gc_interest_list ul').empty();
         for (var elem in interests) {
             $('#gc_interest_list ul').append('<li>'
@@ -112,6 +171,12 @@ function getInterestsClick(profileId) {
                 + interests[elem].label + ' - '
                 + '<a href="#" class="gc_subscribe_interest" id="gc_subscribe_interest_'+ interests[elem].id +'">Subscribe</a>' + ' - '
                 + '<a href="#" class="gc_unsubscribe_interest" id="gc_unsubscribe_interest_'+ interests[elem].id +'">Unsubscribe</a>'
+
+                + '<div id="gc_makecall">'
+                + '<a href="#" class="gc_makecall_interest" id="gc_makecall_interest_'+ interests[elem].id +'">Make Call</a>' + ' - '
+                + '<input type="text" maxlength="50" value="" id="makecall_extension" placeholder="Extension">'
+                + '</div>'
+
                 + '</li>');
         }
     });
@@ -128,7 +193,7 @@ $('#gc_profiles').on('click', 'a.gc_get_features', function(e) {
 function getFeaturesClick(profileId) {
     $('#gc_feature_list ul').empty();
     $('#gc_feature_list ul').append('<li>Loading features</li>');
-    Session.connection.openlink.getFeatures(App.options.app.system + '.' + Session.connection.domain, profileId, function(features) {
+    Session.connection.openlink.getFeatures(getDefaultSystem(), profileId, function(features) {
         $('#gc_feature_list ul').empty();
         for (var elem in features) {
             $('#gc_feature_list ul').append('<li>'
@@ -145,7 +210,7 @@ $('#gc_interests').on('click', 'a.gc_subscribe_interest', function(e) {
     if (e.target.id) {
         var interest = e.target.id.replace('gc_subscribe_interest_', '');
     }
-    Session.connection.openlink.subscribe(getPubsubAddress(), interest);
+    Session.connection.openlink.subscribe(Session.connection.openlink.getPubsubAddress(), interest);
 });
 
 $('#gc_interests').on('click', 'a.gc_unsubscribe_interest', function(e) {
@@ -153,11 +218,37 @@ $('#gc_interests').on('click', 'a.gc_unsubscribe_interest', function(e) {
     if (e.target.id) {
         var interest = e.target.id.replace('gc_unsubscribe_interest_', '');
     }
-    Session.connection.openlink.unsubscribe(getPubsubAddress(), interest);
+    Session.connection.openlink.unsubscribe(Session.connection.openlink.getPubsubAddress(), interest);
 });
 
-function getPubsubAddress() {
-    return 'pubsub.' + Session.connection.domain;
+$('#gc_interests').on('click', 'a.gc_makecall_interest', function(e) {
+    e.preventDefault();
+    if (e.target.id) {
+        var interest = e.target.id.replace('gc_makecall_interest_', '');
+    }
+    Session.connection.openlink.makeCall(getDefaultSystem(), interest, $('#makecall_extension').val(),
+        [
+            { id: 'Conference', value1: true },
+            { id: 'Callback', value1: true, value2: 'testCallback' }
+        ]);
+});
+
+$('#gc_request_action').click(function() {
+
+    var callId = $("#request_action_callid").val();
+    var actionId = $("#request_action_actionid").val();
+    var value1 = $("#request_action_value1").val();
+    var value2 = $("#request_action_value2").val();
+    var call = Session.connection.openlink.calls[callId]
+    if (call && call.interest) {
+        var interest = call.interest;
+    }
+
+    Session.connection.openlink.requestAction(getDefaultSystem(), interest, callId, new Action({id: actionId, value1: value1, value2: value2}));
+});
+
+function getDefaultSystem() {
+    return App.options.app.system + '.' + Session.connection.domain;
 }
 
 function connect(data) {
