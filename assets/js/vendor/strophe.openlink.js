@@ -59,7 +59,7 @@ Strophe.addConnectionPlugin('openlink', {
         var self = this;
         var _successCallback = function(iq) {
             if (errorCallback && self._isError(iq)) {
-                errorCallback('Error getting profiles');
+                errorCallback(self._getErrorNote(iq));
                 return;
             }
 
@@ -111,7 +111,7 @@ Strophe.addConnectionPlugin('openlink', {
         var self = this;
         var _successCallback = function(iq) {
             if (errorCallback && self._isError(iq)) {
-                errorCallback('Error getting interests');
+                errorCallback(self._getErrorNote(iq));
                 return;
             }
 
@@ -164,7 +164,7 @@ Strophe.addConnectionPlugin('openlink', {
         var self = this;
         var _successCallback = function(iq) {
             if (errorCallback && self._isError(iq)) {
-                errorCallback('Error getting features');
+                errorCallback(self._getErrorNote(iq));
                 return;
             }
 
@@ -347,7 +347,7 @@ Strophe.addConnectionPlugin('openlink', {
         var self = this;
         var _successCallback = function(iq) {
             if (errorCallback && self._isError(iq)) {
-                errorCallback('Error on make call');
+                errorCallback(self._getErrorNote(iq));
                 return;
             }
 
@@ -396,7 +396,7 @@ Strophe.addConnectionPlugin('openlink', {
         var self = this;
         var _successCallback = function(iq) {
             if (errorCallback && self._isError(iq)) {
-                errorCallback('Error on request action');
+                errorCallback(self._getErrorNote(iq));
                 return;
             }
             var call = self._parseCall(iq);
@@ -576,10 +576,23 @@ Strophe.addConnectionPlugin('openlink', {
         return call;
     },
 
+    _getErrorNote: function(elem) {
+        var errorNpte = '';
+        if (elem) {
+            var foundElem = elem.getElementsByTagName('note')[0];
+            if (foundElem) {
+                if (foundElem.attributes.type && foundElem.attributes.type.value == 'error') {
+                    if (foundElem.textContent && foundElem.textContent.length > 0)
+                        errorNote = foundElem.textContent;
+                }
+            }
+        }
+        return errorNote;
+    },
+
     _isError: function(elem) {
         var error = false;
         if (elem) {
-            // if (iq type error or elem not error then return note
             var foundElem = elem.getElementsByTagName('note')[0];
             if (foundElem) {
                 if (foundElem.attributes.type && foundElem.attributes.type.value == 'error') {
