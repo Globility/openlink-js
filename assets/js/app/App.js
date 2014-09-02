@@ -1,6 +1,5 @@
-var BIND_PATH = '/http-bind';
-var BOSH_URL = window.location.protocol + '//' + window.location.hostname + BIND_PATH;
-resource = 'office';
+BIND_PATH = '/http-bind';
+BOSH_URL = window.location.protocol + '//' + window.location.hostname + BIND_PATH;
 
 App = {};
 Session = {};
@@ -58,9 +57,6 @@ App.callHandler = function(callEv, changed) {
             + call.interest + ' - '
             + call.state + ' - '
             + call.direction;
-//            + calls[cid].caller + ' - '
-//            + calls[cid].called + ' - '
-//
             if (call.actions.length > 0) {
                 callText += '<ul>';
                 for (var _i = 0; _i < call.actions.length; _i++) {
@@ -148,6 +144,8 @@ $('#gc_get_profiles').click(function() {
 
             $('#gc_profiles ul:first').append(profileText);
         }
+    }, function(message) {
+        alert(message);
     });
 });
 
@@ -179,6 +177,8 @@ function getInterestsClick(profileId) {
 
                 + '</li>');
         }
+    }, function(message) {
+        alert(message);
     });
 }
 
@@ -202,6 +202,8 @@ function getFeaturesClick(profileId) {
                 + features[elem].label
                 + '</li>');
         }
+    }, function(message) {
+        alert(message);
     });
 }
 
@@ -210,7 +212,11 @@ $('#gc_interests').on('click', 'a.gc_subscribe_interest', function(e) {
     if (e.target.id) {
         var interest = e.target.id.replace('gc_subscribe_interest_', '');
     }
-    Session.connection.openlink.subscribe(Session.connection.openlink.getPubsubAddress(), interest);
+    Session.connection.openlink.subscribe(Session.connection.openlink.getPubsubAddress(), interest, function(message) {
+        alert(message);
+    }, function(message) {
+        alert(message);
+    });
 });
 
 $('#gc_interests').on('click', 'a.gc_unsubscribe_interest', function(e) {
@@ -218,7 +224,11 @@ $('#gc_interests').on('click', 'a.gc_unsubscribe_interest', function(e) {
     if (e.target.id) {
         var interest = e.target.id.replace('gc_unsubscribe_interest_', '');
     }
-    Session.connection.openlink.unsubscribe(Session.connection.openlink.getPubsubAddress(), interest);
+    Session.connection.openlink.unsubscribe(Session.connection.openlink.getPubsubAddress(), interest, function(message) {
+        alert(message);
+    }, function(message) {
+        alert(message);
+    });
 });
 
 $('#gc_interests').on('click', 'a.gc_makecall_interest', function(e) {
@@ -229,12 +239,15 @@ $('#gc_interests').on('click', 'a.gc_makecall_interest', function(e) {
     Session.connection.openlink.makeCall(getDefaultSystem(), interest, $('#makecall_extension').val(),
         [
             { id: 'Conference', value1: true },
-            { id: 'Callback', value1: true, value2: 'testCallback' }
-        ]);
+            { id: 'CallBack', value1: true }
+        ], function(call) {
+            alert('Call made with id: ' + call.id);
+        },function(message) {
+            alert(message);
+        });
 });
 
 $('#gc_request_action').click(function() {
-
     var callId = $("#request_action_callid").val();
     var actionId = $("#request_action_actionid").val();
     var value1 = $("#request_action_value1").val();
@@ -244,7 +257,13 @@ $('#gc_request_action').click(function() {
         var interest = call.interest;
     }
 
-    Session.connection.openlink.requestAction(getDefaultSystem(), interest, callId, new Action({id: actionId, value1: value1, value2: value2}));
+    Session.connection.openlink.requestAction(getDefaultSystem(), interest, callId, new Action({id: actionId, value1: value1, value2: value2}),function(call) {
+        if (call) {
+            alert('Call actioned with id: ' + call.id);
+        }
+    },function(message) {
+        alert(message);
+    });
 });
 
 function getDefaultSystem() {

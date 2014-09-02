@@ -19,33 +19,9 @@ Strophe.addConnectionPlugin('openlink', {
         var self = this;
         if (status == Strophe.Status.CONNECTED) {
             this.callHandlerId = this._connection.addHandler(function(packet) {
-                console.log("PACKET: " + packet);
-                var callStatus = packet.getElementsByTagName('callstatus')[0];
-                if (callStatus) {
-                    var callElem = callStatus.getElementsByTagName('call')[0];
-                    if (callElem) {
-                        var id = self._getElementText('id', callElem);
-                        var callEv = new Call({id: id});
-
-                        callEv.profile = self._getElementText('profile', callElem);
-                        callEv.interest = self._getElementText('interest', callElem);
-                        callEv.changed = self._getElementText('changed', callElem);
-                        callEv.state = self._getElementText('state', callElem);
-
-                        callEv.direction = self._getElementText('direction', callElem);
-                        callEv.duration = self._getElementText('duration', callElem);
-
-                        callEv.caller = self._flattenElementAndText(callElem.getElementsByTagName('caller')[0]);
-
-                        callEv.called = self._flattenElementAndText(callElem.getElementsByTagName('called')[0]);
-
-                        callEv.actions = self._parseCallActions(callElem.getElementsByTagName('actions')[0]);
-
-                        callEv.participants = self._parseCallParticipants(callElem.getElementsByTagName('participants')[0]);
-                        callEv.features = self._parseCallFeatures(callElem.getElementsByTagName('features')[0]);
-
-                        self._updateCalls(callEv);
-                    }
+                var callEv = self._parseCall(packet);
+                if (callEv) {
+                    self._updateCalls(callEv);
                 }
                 return true;
             }, null, 'message', null, null, this.getPubsubAddress());
@@ -64,7 +40,7 @@ Strophe.addConnectionPlugin('openlink', {
     /**
      * Implements 'http://xmpp.org/protocol/openlink:01:00:00#get-profiles'.
      * @param to Openlink XMPP component.
-     * @param successCallback called on successful execution.
+     * @param successCallback called on successful execution with array of profile IDs and profiles.
      * @param errorCallback called on error.
      */
     getProfiles: function (to, successCallback, errorCallback) {
@@ -82,9 +58,13 @@ Strophe.addConnectionPlugin('openlink', {
 
         var self = this;
         var _successCallback = function(iq) {
+            if (errorCallback && self._isError(iq)) {
+                errorCallback('Error getting profiles');
+                return;
+            }
+
             var query = iq.getElementsByTagName('profile');
             for (var _i = 0, _len = query.length; _i < _len; _i++) {
-                console.log('Profile: ',_i);
                 var data = self._parseProfile(query[_i]);
                 var profile = new Profile(data);
                 for (var _j = 0, _len1 = data.actions.length; _j < _len1; _j++) {
@@ -92,18 +72,15 @@ Strophe.addConnectionPlugin('openlink', {
                 }
 
                 self.profiles[profile.id] = profile;
-                console.log("data:",data);
             }
-            console.log("PROFILES:", self.profiles);
             if (successCallback) {
                 successCallback(self.profiles);
             }
         };
 
         var _errorCallback = function(iq) {
-            console.error('Error calling getProfiles');
             if (errorCallback) {
-                errorCallback('Error calling getProfiles');
+                errorCallback('Error getting profiles');
             }
         };
 
@@ -133,25 +110,30 @@ Strophe.addConnectionPlugin('openlink', {
 
         var self = this;
         var _successCallback = function(iq) {
-            var query = iq.getElementsByTagName('interest');
-
-            for (var _i = 0, _len = query.length; _i < _len; _i++) {
-                console.log('Interest: ',_i);
-                var data = self._parseAttributes(query[_i]);
-                var interest = new Interest(data);
-                console.log("INTERESTDATA:",data);
-                interests[interest.id] = interest;
+            if (errorCallback && self._isError(iq)) {
+                errorCallback('Error getting interests');
+                return;
             }
-            console.log("INTERESTS:", interests);
-            if (successCallback) {
-                successCallback(interests);
+
+            var interestsElem = iq.getElementsByTagName('interests')[0];
+            if (interests) {
+                var query = interestsElem.getElementsByTagName('interest');
+                for (var _i = 0, _len = query.length; _i < _len; _i++) {
+                    var data = self._parseAttributes(query[_i]);
+                    if (data.id) {
+                        var interest = new Interest(data);
+                        interests[interest.id] = interest;
+                    }
+                }
+                if (successCallback) {
+                    successCallback(interests);
+                }
             }
         };
 
         var _errorCallback = function(iq) {
-            console.error('Error calling getInterests');
             if (errorCallback) {
-                errorCallback('Error calling getInterests');
+                errorCallback('Error getting interests')
             }
         };
 
@@ -181,13 +163,15 @@ Strophe.addConnectionPlugin('openlink', {
 
         var self = this;
         var _successCallback = function(iq) {
-            var query = iq.getElementsByTagName('feature');
+            if (errorCallback && self._isError(iq)) {
+                errorCallback('Error getting features');
+                return;
+            }
 
+            var query = iq.getElementsByTagName('feature');
             for (var _i = 0, _len = query.length; _i < _len; _i++) {
-                console.log('Feature: ',_i);
                 var data = self._parseAttributes(query[_i]);
                 var feature = new Feature(data);
-                console.log("FEATUREDATA:",data);
                 features[feature.id] = feature;
             }
             console.log("FEATURES:", features);
@@ -197,9 +181,8 @@ Strophe.addConnectionPlugin('openlink', {
         };
 
         var _errorCallback = function(iq) {
-            console.error('Error calling getInterests');
             if (errorCallback) {
-                errorCallback('Error calling getInterests');
+                errorCallback('Error getting features');
             }
         };
 
@@ -217,7 +200,7 @@ Strophe.addConnectionPlugin('openlink', {
         var self = this;
         this.getSubscriptions(to, interest, function(subscriptions) {
             if (subscriptions.length > 0) {
-                alert('Already subscribed with ' + subscriptions.length + ' subscriptions');
+                errorCallback('Already subscribed with ' + subscriptions.length + ' subscriptions');
             } else {
                 var subs_iq2 = $iq({
                     to: to,
@@ -229,7 +212,9 @@ Strophe.addConnectionPlugin('openlink', {
                     jid: Strophe.getBareJidFromJid(self._connection.jid)
                 });
                 self._connection.sendIQ(subs_iq2, function(iq) {
-                    alert('Subscribed');
+                    if (successCallback) {
+                        successCallback('Subscribed');
+                    }
                 });
             }
         });
@@ -259,11 +244,15 @@ Strophe.addConnectionPlugin('openlink', {
                     });
 
                     self._connection.sendIQ(subs_iq, function (iq) {
-                        alert('Unsubscribed');
+                        if (successCallback) {
+                            successCallback('Unsubscribed');
+                        }
                     });
                 }
             } else {
-                alert('No subscriptions exist');
+                if (errorCallback) {
+                    errorCallback('No subscriptions exist');
+                }
             }
         });
     },
@@ -291,21 +280,17 @@ Strophe.addConnectionPlugin('openlink', {
             var query = iq.getElementsByTagName('subscription');
 
             for (var _i = 0, _len = query.length; _i < _len; _i++) {
-                console.log('Subscription: ',_i);
                 var data = self._parseAttributes(query[_i]);
-                console.log("SUBSCRIPTIONDATA:",data);
                 subscriptions.push(data);
             }
-            console.log("SUBSCRIPTIONS:", subscriptions);
             if (successCallback) {
                 successCallback(subscriptions);
             }
         };
 
         var _errorCallback = function(iq) {
-            console.error('Error calling getSubscriptions');
             if (errorCallback) {
-                errorCallback('Error calling getSubscriptions');
+                errorCallback('Error getting subscriptions');
             }
         };
 
@@ -326,7 +311,7 @@ Strophe.addConnectionPlugin('openlink', {
      * @param interest the Openlink interest.
      * @param extension the far party extension.
      * @param features array of call features in the form Feature.id, Feature.value1 and Feature.value2.
-     * @param successCallback called on successful execution.
+     * @param successCallback called on successful execution with new call object.
      * @param errorCallback called on error.
      */
     makeCall: function(to, interest, extension, features, successCallback, errorCallback) {
@@ -345,7 +330,7 @@ Strophe.addConnectionPlugin('openlink', {
         }).c("in")
             .c("jid").t(Strophe.getBareJidFromJid(this._connection.jid)).up()
             .c("interest").t(interest).up()
-            .c("destination").t(extension).up();
+            .c("destination").t(extension);
 
         if (features && features.length > 0) {
             mc_iq = mc_iq.up().c("features");
@@ -360,29 +345,25 @@ Strophe.addConnectionPlugin('openlink', {
         }
 
         var self = this;
-        this._connection.sendIQ(mc_iq, function(iq) {
+        var _successCallback = function(iq) {
+            if (errorCallback && self._isError(iq)) {
+                errorCallback('Error on make call');
+                return;
+            }
 
-            // update successCallback on updated call
+            var call = self._parseCall(packet);
+            if (successCallback) {
+                successCallback(call);
+            }
+        };
 
-            // otherwise send error to errorCallback
+        var _errorCallback = function(iq) {
+            if (errorCallback) {
+                errorCallback('Error on make call');
+            }
+        };
 
-//            if (!Openlink.checkError(iq)) {
-//                console.log("MakeCall ID: " + callId);
-//                console.log("MakeCall State: " + callState);
-//                console.log("MakeCall Actions: " + callactions);
-//                VoiceBlast.vent.trigger("alert", "warning", "Dialling " + Openlink.defaultInterest);
-//            }
-//            if (callstatus.length) {
-//                console.log(callstatus);
-//            } else {
-//                console.log(callstatus)
-//                return false;
-//            }
-//            var date = new Date();
-//            var timestamp_date = convertTimestampToDate(date);
-
-
-        });
+        this._connection.sendIQ(mc_iq, _successCallback, _errorCallback);
     },
 
     /**
@@ -411,11 +392,25 @@ Strophe.addConnectionPlugin('openlink', {
         if (action.value2) {
             mc_iq = mc_iq.c("value2").t(action.value2).up();
         }
-        this._connection.sendIQ(mc_iq, function(iq) {
-//            if (!Openlink.checkError(iq)) {
-//                VoiceBlast.vent.trigger("alert", "warning", "Joining Call " + callid);
-//            }
-        });
+
+        var self = this;
+        var _successCallback = function(iq) {
+            if (errorCallback && self._isError(iq)) {
+                errorCallback('Error on request action');
+                return;
+            }
+            var call = self._parseCall(iq);
+            if (successCallback) {
+                successCallback(call);
+            }
+        }
+        var _errorCallback = function(iq) {
+            if (errorCallback) {
+                errorCallback('Error on request action');
+            }
+        };
+
+        this._connection.sendIQ(mc_iq, _successCallback, _errorCallback);
     },
 
     _updateCalls: function(callEv) {
@@ -549,37 +544,55 @@ Strophe.addConnectionPlugin('openlink', {
         return result;
     },
 
-    _isError: function(elem) {
-//        var result = false;
-//        if (elem) {
-//            if (elem.type === 'error') {
-//                result = true;
-//            }
-//            else
-//            {
-//                var query = elem.getElementsByTagName('error');
-//                if (query && query.length != 0) {
-//                    result = true;
-//                }
-//            }
-//        }
-//       return result;
+    _parseCall: function(elem) {
+        var call = null;
+        if (elem) {
+            var callStatus = elem.getElementsByTagName('callstatus')[0];
+            if (callStatus) {
+                var callElem = callStatus.getElementsByTagName('call')[0];
+                if (callElem) {
+                    var id = this._getElementText('id', callElem);
+                    var call = new Call({id: id});
+
+                    call.profile = this._getElementText('profile', callElem);
+                    call.interest = this._getElementText('interest', callElem);
+                    call.changed = this._getElementText('changed', callElem);
+                    call.state = this._getElementText('state', callElem);
+
+                    call.direction = this._getElementText('direction', callElem);
+                    call.duration = this._getElementText('duration', callElem);
+
+                    call.caller = this._flattenElementAndText(callElem.getElementsByTagName('caller')[0]);
+
+                    call.called = this._flattenElementAndText(callElem.getElementsByTagName('called')[0]);
+
+                    call.actions = this._parseCallActions(callElem.getElementsByTagName('actions')[0]);
+
+                    call.participants = this._parseCallParticipants(callElem.getElementsByTagName('participants')[0]);
+                    call.features = this._parseCallFeatures(callElem.getElementsByTagName('features')[0]);
+                }
+            }
+        }
+        return call;
     },
 
-    _checkError : function(elem) {
-//        if (elem) {
-//            var errorNote = $(elem).find('note[type="error"]').text();
-//            if (errorNote != null && errorNote != '') {
-//                console.log("Openlink ERROR >>> " + errorNote);
-//                if (errorNote.indexOf("Invalid interest") >= 0) {
-//                    VoiceBlast.vent.trigger("alert", "error", "Please wait while your account is being provisioned for voice, this can take up to 60 seconds...");
-//                } else {
-//                    VoiceBlast.vent.trigger("alert", "error", errorNote);
-//                }
-//                return true;
-//            }
-//        }
-//        return false;
+    _isError: function(elem) {
+        var error = false;
+        if (elem) {
+            // if (iq type error or elem not error then return note
+            var foundElem = elem.getElementsByTagName('note')[0];
+            if (foundElem) {
+                if (foundElem.attributes.type && foundElem.attributes.type.value == 'error') {
+                    if (foundElem.textContent && foundElem.textContent.length > 0)
+                        console.error(foundElem.textContent);
+                        error = true;
+                    }
+                }
+            }
+            else if (elem.attribute.type == 'error') {
+                error = true;
+            }
+        return error;
     }
 
 });
