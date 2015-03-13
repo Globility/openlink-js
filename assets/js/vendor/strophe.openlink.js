@@ -190,6 +190,61 @@ Strophe.addConnectionPlugin('openlink', {
     },
 
     /**
+     * Implements 'http://xmpp.org/protocol/openlink:01:00:00#get-call-history'.
+     * @param to Openlink XMPP component.
+     * @param successCallback called on successful execution.
+     * @param errorCallback called on error.
+     */
+    getCallHistory: function(to, jid, caller, called, calltype, fromdate, uptodate, start, count, successCallback, errorCallback) {
+        var history = {};
+        var self = this;
+        var gf_iq = $iq({
+            to : to,
+            type : "set"
+        }).c("command", {
+            xmlns : "http://jabber.org/protocol/commands",
+            action : "execute",
+            node : "http://xmpp.org/protocol/openlink:01:00:00#get-call-history"
+        }).c("iodata", {
+            xmlns : "urn:xmpp:tmp:io-data",
+            type : "input"
+        }).c("in")
+        .c("jid").t(Strophe.getBareJidFromJid(self._connection.jid)).up()
+        .c("caller").t(caller).up()
+        .c("called").t(called).up()
+        .c("calltype").t(calltype).up()
+        .c("fromdate").t(fromdate).up()
+        .c("uptodate").t(uptodate).up()
+        .c("start").t(start).up()
+        .c("count").t(count).up();
+        
+        var _successCallback = function(iq) {
+            if (errorCallback && self._isError(iq)) {
+                errorCallback(self._getErrorNote(iq));
+                return;
+            }
+
+            var query = iq.getElementsByTagName('call');
+            for (var _i = 0, _len = query.length; _i < _len; _i++) {
+                var data = self._parseCallHistory(query[_i]);
+                history[data.id] = data;
+            }
+            console.log("HISTORY:", history);
+            if (successCallback) {
+                successCallback(history);
+            }
+        };
+
+        var _errorCallback = function(iq) {
+            if (errorCallback) {
+                errorCallback('Error getting history');
+            }
+        };
+
+        this._connection.sendIQ(gf_iq, _successCallback, _errorCallback);
+    },
+
+    /**
      * Implements 'http://www.xmpp.org/extensions/xep-0060.html#subscriber-subscribe'.
      * @param to pubsub service, usually pubsub.domain - see getPubsubAddress().
      * @param interest the Openlink interest/pubsub node.
@@ -508,6 +563,16 @@ Strophe.addConnectionPlugin('openlink', {
         if (elem) {
             for (var _i = 0; _i < elem.childNodes.length; _i++) {
                 data.push(this._parseAttributes(elem.childNodes[_i]));
+            }
+        }
+        return data;
+    },
+
+    _parseCallHistory: function(elem) {
+        var data = {};
+        if (elem) {
+            for (var _i = 0; _i < elem.childNodes.length; _i++) {
+                data[elem.childNodes[_i].nodeName] = elem.childNodes[_i].textContent;
             }
         }
         return data;
