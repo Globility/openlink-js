@@ -68,6 +68,18 @@
         </div>
     </div>
 
+    <h2>Call History</h2>
+    <div id="gc_call_history">
+        <div class="gc_btn_holder">
+            <input type="button" id="gc_get_history" value="Get History">
+        </div>
+        <div class="gc_list" id="gc_history_list">
+            <ul>
+                <li>No history found</li>
+            </ul>
+        </div>
+    </div>
+
     <h2>Calls</h2>
 
     <div id="gc_request_actions">
@@ -107,11 +119,11 @@
     App.start({
         app: {
             debug: true,
-            xmpp_domain: 'xmpp.example.com',
+            xmpp_domain: 'garyvms.gltd.local',
             xmpp_resource: 'office',
-            username: '',
-            password: '',
-            system: 'vmstsp',
+            username: 'gary',
+            password: 'gary',
+            system: 'avaya7',
             autologon: false
         }
     });

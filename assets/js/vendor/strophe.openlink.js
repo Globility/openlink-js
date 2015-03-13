@@ -195,7 +195,7 @@ Strophe.addConnectionPlugin('openlink', {
      * @param successCallback called on successful execution.
      * @param errorCallback called on error.
      */
-    getCallHistory: function(to, jid, caller, called, callType, fromDate, upToDate, start, count, successCallback, errorCallback) {
+    getCallHistory: function(to, jid, caller, called, calltype, fromdate, uptodate, start, count, successCallback, errorCallback) {
         var history = {};
         var self = this;
         var gf_iq = $iq({
@@ -212,9 +212,9 @@ Strophe.addConnectionPlugin('openlink', {
         .c("jid").t(Strophe.getBareJidFromJid(self._connection.jid)).up()
         .c("caller").t(caller).up()
         .c("called").t(called).up()
-        .c("calltype").t(callType).up()
-        .c("fromdate").t(fromDate).up()
-        .c("uptodate").t(upToDate).up()
+        .c("calltype").t(calltype).up()
+        .c("fromdate").t(fromdate).up()
+        .c("uptodate").t(uptodate).up()
         .c("start").t(start).up()
         .c("count").t(count).up();
         
