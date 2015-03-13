@@ -1,6 +1,5 @@
 BIND_PATH = '/http-bind';
-BOSH_URL = "http://dogstar.gltd.local/http-bind";
-
+BOSH_URL = window.location.protocol + '//' + window.location.hostname + BIND_PATH;
 App = {};
 Session = {};
 App.start = function(options) {
