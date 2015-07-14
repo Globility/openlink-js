@@ -49,8 +49,8 @@ The items required to use the application can all be found in the `build` folder
 ###Application Arguments
 
 The applications arguments are:
-* `debug`: true/false - enables debugging to console 
-By default it suffixes the bind path. So on Openfire the full path would be `http://SERVER:7070/http-bind`. 
+* `debug`: true/false - enables debugging to console. 
+* `bosh_domain`: By default it suffixes the bind path. So on Openfire the full path would be `http://SERVER:7070/http-bind`.
 * `xmpp_domain`: The XMPP domain.
 * `xmpp_resource`: Your XMPP resource.
 * `username`: Optional username to pre-populate the example app.
@@ -60,7 +60,7 @@ By default it suffixes the bind path. So on Openfire the full path would be `htt
 
 Two application parameters need to be defined in the app itself:
 * `BIND_PATH`: /http-bind - defines the bind URL path.
-* `BOSH_URL`: defines the full URL used to connect to the BOSH service.
+* `BOSH_URL`: defines the full URL used to connect to the BOSH service. This is built from the `bosh_domain` and `BIND_PATH`.
 
 ##Application Guide
 
