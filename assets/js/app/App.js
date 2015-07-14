@@ -1,6 +1,5 @@
 BIND_PATH = '/http-bind';
 BOSH_URL = window.location.protocol + '//' + window.location.hostname + BIND_PATH;
-
 App = {};
 Session = {};
 App.start = function(options) {
@@ -261,6 +260,34 @@ $('#gc_request_action').click(function() {
         if (call) {
             alert('Call actioned with id: ' + call.id);
         }
+    },function(message) {
+        alert(message);
+    });
+});
+
+$('#gc_get_history').click(function() {
+    $('#gc_history_list ul').empty();
+    $('#gc_history_list ul').append('<li>Loading history</li>');
+    Session.connection.openlink.getCallHistory(getDefaultSystem(), "", 
+        "", "", "out", "", "", "0", "50", function(history) {
+        $('#gc_history_list ul').empty();
+        if (history) {
+            console.log(history);
+        }
+
+        for (var callid in history) {
+            var call = history[callid];
+
+            var historyText = call.id + '<ul>';
+
+            for (var property in call) {
+                historyText += '<li>' + property + ': ' + call[property] + '</li>';
+            }
+
+            historyText += '</ul>';
+            $('#gc_history_list ul:first').append(historyText);
+        }
+
     },function(message) {
         alert(message);
     });

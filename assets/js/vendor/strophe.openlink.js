@@ -13,15 +13,21 @@ Strophe.addConnectionPlugin('openlink', {
 
     init: function (connection) {
         this._connection = connection;
+        console.log('loaded openlink strophe library');
     },
 
     statusChanged: function(status, condition) {
         var self = this;
         if (status == Strophe.Status.CONNECTED) {
             this.callHandlerId = this._connection.addHandler(function(packet) {
-                var callEv = self._parseCall(packet);
-                if (callEv) {
-                    self._updateCalls(callEv);
+                var callsElem = packet.getElementsByTagName('callstatus')[0];
+                if (callsElem) {
+                    var queryCall = callsElem.getElementsByTagName('call');
+                    for (var _i = 0, _len = queryCall.length; _i < _len; _i++) {
+                        console.log(queryCall[_i]);
+                        var data = self._parseCallInterest(queryCall[_i]);
+                        self._updateCalls(data);
+                    }
                 }
                 return true;
             }, null, 'message', null, null, this.getPubsubAddress());
@@ -35,6 +41,92 @@ Strophe.addConnectionPlugin('openlink', {
      */
     sendPresence: function() {
         this._connection.send($pres());
+    },
+
+    /**
+     * Implements 'http://xmpp.org/......'.
+     * Get Private Storage
+     */
+    getPrivateData: function (successCallback) {
+        var gp_iq = $iq({
+            type : "get",
+            id: "gtx-data1"
+        }).c("query", {
+            xmlns : "jabber:iq:private"
+        }).c("gtx-profile", {
+            xmlns: "http://gltd.net/protocol/gtx/profile"
+        });
+
+        var self = this;
+        var _successCallback = function(iq) {
+            if (successCallback) {
+                successCallback(iq);
+            } else {
+                console.log("Success", iq);
+            }
+        };
+
+        var _errorCallback = function(iq) {
+            console.log("Error", iq);
+        };
+
+        this._connection.sendIQ(gp_iq, _successCallback, _errorCallback);
+    },
+
+    /**
+     * Implements 'http://xmpp.org/extensions/xep-0030.html'.
+     * Disco Items
+     */
+    discoItems: function (to, successCallback) {
+        var gp_iq = $iq({
+            to : to,
+            type : "get",
+            id: "items1",
+            from: Strophe.getBareJidFromJid(this._connection.jid)
+        }).c("query", {
+            xmlns : "http://jabber.org/protocol/disco#items"
+        });
+
+        var self = this;
+        var _successCallback = function(iq) {
+            if (successCallback) {
+                successCallback(iq);
+            } else {
+                console.log("Success", iq);
+            }
+        };
+
+        var _errorCallback = function(iq) {
+            console.log("Error", iq);
+        };
+
+        this._connection.sendIQ(gp_iq, _successCallback, _errorCallback);
+    },
+
+    discoInfo: function (jid, successCallback) {
+        var gp_iq = $iq({
+            to : jid,
+            type : "get",
+            id: "info-" + jid,
+            from: Strophe.getBareJidFromJid(this._connection.jid)
+        }).c("query", {
+            xmlns : "http://jabber.org/protocol/disco#info"
+        });
+
+        var self = this;
+        var _successCallback = function(iq) {
+            if (successCallback) {
+                successCallback(iq);
+            } else {
+                console.log(iq);
+            }
+        };
+
+        var _errorCallback = function(iq) {
+            console.log("Error", iq);
+        };
+
+        this._connection.sendIQ(gp_iq, _successCallback, _errorCallback);
     },
 
     /**
@@ -96,6 +188,7 @@ Strophe.addConnectionPlugin('openlink', {
      */
     getInterests: function(to, profileId, successCallback, errorCallback) {
         var interests = {};
+
         var gi_iq = $iq({
             to : to,
             type : "set"
@@ -116,6 +209,7 @@ Strophe.addConnectionPlugin('openlink', {
             }
 
             var interestsElem = iq.getElementsByTagName('interests')[0];
+            var callsElem = iq.getElementsByTagName('callstatus')[0];
             if (interests) {
                 var query = interestsElem.getElementsByTagName('interest');
                 for (var _i = 0, _len = query.length; _i < _len; _i++) {
@@ -123,6 +217,14 @@ Strophe.addConnectionPlugin('openlink', {
                     if (data.id) {
                         var interest = new Interest(data);
                         interests[interest.id] = interest;
+                    }
+                }
+                if (callsElem) {
+                    var queryCall = callsElem.getElementsByTagName('call');
+                    for (var _i = 0, _len = queryCall.length; _i < _len; _i++) {
+                        console.log(queryCall[_i]);
+                        var data = self._parseCallInterest(queryCall[_i]);
+                        self._updateCalls(data);
                     }
                 }
                 if (successCallback) {
@@ -183,6 +285,62 @@ Strophe.addConnectionPlugin('openlink', {
         var _errorCallback = function(iq) {
             if (errorCallback) {
                 errorCallback('Error getting features');
+            }
+        };
+
+        this._connection.sendIQ(gf_iq, _successCallback, _errorCallback);
+    },
+
+    /**
+     * Implements 'http://xmpp.org/protocol/openlink:01:00:00#get-call-history'.
+     * @param to Openlink XMPP component.
+     * @param successCallback called on successful execution.
+     * @param errorCallback called on error.
+     */
+    getCallHistory: function(to, jid, profile, caller, called, calltype, fromdate, uptodate, start, count, successCallback, errorCallback) {
+        var history = {};
+        var self = this;
+        var gf_iq = $iq({
+            to : to,
+            type : "set"
+        }).c("command", {
+            xmlns : "http://jabber.org/protocol/commands",
+            action : "execute",
+            node : "http://xmpp.org/protocol/openlink:01:00:00#get-call-history"
+        }).c("iodata", {
+            xmlns : "urn:xmpp:tmp:io-data",
+            type : "input"
+        }).c("in")
+        .c("jid").t(Strophe.getBareJidFromJid(self._connection.jid)).up()
+        .c("profile").t(profile).up()
+        .c("caller").t(caller).up()
+        .c("called").t(called).up()
+        .c("calltype").t(calltype).up()
+        .c("fromdate").t(fromdate).up()
+        .c("uptodate").t(uptodate).up()
+        .c("start").t(start).up()
+        .c("count").t(count).up();
+        
+        var _successCallback = function(iq) {
+            if (errorCallback && self._isError(iq)) {
+                errorCallback(self._getErrorNote(iq));
+                return;
+            }
+
+            var query = iq.getElementsByTagName('call');
+            for (var _i = 0, _len = query.length; _i < _len; _i++) {
+                var data = self._parseCallHistory(query[_i]);
+                history[data.id] = data;
+            }
+            console.log("HISTORY:", history);
+            if (successCallback) {
+                successCallback(history);
+            }
+        };
+
+        var _errorCallback = function(iq) {
+            if (errorCallback) {
+                errorCallback('Error getting history');
             }
         };
 
@@ -351,7 +509,7 @@ Strophe.addConnectionPlugin('openlink', {
                 return;
             }
 
-            var call = self._parseCall(packet);
+            var call = self._parseCall(iq);
             if (successCallback) {
                 successCallback(call);
             }
@@ -365,7 +523,7 @@ Strophe.addConnectionPlugin('openlink', {
 
         this._connection.sendIQ(mc_iq, _successCallback, _errorCallback);
     },
-
+    
     /**
      * Implements 'http://xmpp.org/protocol/openlink:01:00:00#request-action'.
      * @param to Openlink XMPP component.
@@ -377,6 +535,7 @@ Strophe.addConnectionPlugin('openlink', {
     requestAction: function(to, interest, callId, action, successCallback, errorCallback) {
         var mc_iq = $iq({
             to : to,
+            from : Strophe.getBareJidFromJid(this._connection.jid),
             type : "set"
         }).c("command", {
             xmlns : "http://jabber.org/protocol/commands",
@@ -385,7 +544,10 @@ Strophe.addConnectionPlugin('openlink', {
         }).c("iodata", {
             xmlns : "urn:xmpp:tmp:io-data",
             type : "input"
-        }).c("in").c("interest").t(interest).up().c("action").t(action.id).up().c("call").t(callId).up();
+        }).c("in")
+        .c("interest").t(interest).up()
+        .c("action").t(action.id).up()
+        .c("call").t(callId).up();
         if (action.value1) {
             mc_iq = mc_iq.c("value1").t(action.value1).up();
         }
@@ -414,6 +576,7 @@ Strophe.addConnectionPlugin('openlink', {
     },
 
     _updateCalls: function(callEv) {
+        console.log("CALLS UPDATED");
         if (callEv) {
             var id = callEv.id;
             if (id) {
@@ -425,7 +588,7 @@ Strophe.addConnectionPlugin('openlink', {
                     this.callHandlers[handler](callEv, changed);
                 }
 
-                if (callEv.state === 'ConnectionCleared') {
+                if (callEv.state === 'ConnectionCleared' || callEv.state === 'CallMissed') {
                     delete this.calls[id];
                 }
             }
@@ -533,6 +696,16 @@ Strophe.addConnectionPlugin('openlink', {
         return data;
     },
 
+    _parseCallHistory: function(elem) {
+        var data = {};
+        if (elem) {
+            for (var _i = 0; _i < elem.childNodes.length; _i++) {
+                data[elem.childNodes[_i].nodeName] = elem.childNodes[_i].textContent;
+            }
+        }
+        return data;
+    },
+
     _getElementText: function(name, elem) {
         var result;
         if (name && elem) {
@@ -550,28 +723,59 @@ Strophe.addConnectionPlugin('openlink', {
             var callStatus = elem.getElementsByTagName('callstatus')[0];
             if (callStatus) {
                 var callElem = callStatus.getElementsByTagName('call')[0];
-                if (callElem) {
-                    var id = this._getElementText('id', callElem);
-                    var call = new Call({id: id});
+                    if (callElem) {
+                        var id = this._getElementText('id', callElem);
+                        var call = new Call({id: id});
 
-                    call.profile = this._getElementText('profile', callElem);
-                    call.interest = this._getElementText('interest', callElem);
-                    call.changed = this._getElementText('changed', callElem);
-                    call.state = this._getElementText('state', callElem);
+                        call.ref = this._flattenElementAndText(callElem.getElementsByTagName('originator-ref')[0]);
 
-                    call.direction = this._getElementText('direction', callElem);
-                    call.duration = this._getElementText('duration', callElem);
+                        call.profile = this._getElementText('profile', callElem);
+                        call.interest = this._getElementText('interest', callElem);
+                        call.changed = this._getElementText('changed', callElem);
+                        call.state = this._getElementText('state', callElem);
 
-                    call.caller = this._flattenElementAndText(callElem.getElementsByTagName('caller')[0]);
+                        call.direction = this._getElementText('direction', callElem);
+                        call.duration = this._getElementText('duration', callElem);
 
-                    call.called = this._flattenElementAndText(callElem.getElementsByTagName('called')[0]);
+                        call.caller = this._flattenElementAndText(callElem.getElementsByTagName('caller')[0]);
 
-                    call.actions = this._parseCallActions(callElem.getElementsByTagName('actions')[0]);
+                        call.called = this._flattenElementAndText(callElem.getElementsByTagName('called')[0]);
 
-                    call.participants = this._parseCallParticipants(callElem.getElementsByTagName('participants')[0]);
-                    call.features = this._parseCallFeatures(callElem.getElementsByTagName('features')[0]);
-                }
+                        call.actions = this._parseCallActions(callElem.getElementsByTagName('actions')[0]);
+
+                        call.participants = this._parseCallParticipants(callElem.getElementsByTagName('participants')[0]);
+                        call.features = this._parseCallFeatures(callElem.getElementsByTagName('features')[0]);
+                    }
             }
+        }
+        return call;
+    },
+
+    _parseCallInterest: function(elem) {
+        var call = null;
+        if (elem) {
+            var callElem = elem;
+            var id = this._getElementText('id', callElem);
+            var call = new Call({id: id});
+
+            call.ref = this._flattenElementAndText(callElem.getElementsByTagName('originator-ref')[0]);
+
+            call.profile = this._getElementText('profile', callElem);
+            call.interest = this._getElementText('interest', callElem);
+            call.changed = this._getElementText('changed', callElem);
+            call.state = this._getElementText('state', callElem);
+
+            call.direction = this._getElementText('direction', callElem);
+            call.duration = this._getElementText('duration', callElem);
+
+            call.caller = this._flattenElementAndText(callElem.getElementsByTagName('caller')[0]);
+
+            call.called = this._flattenElementAndText(callElem.getElementsByTagName('called')[0]);
+
+            call.actions = this._parseCallActions(callElem.getElementsByTagName('actions')[0]);
+
+            call.participants = this._parseCallParticipants(callElem.getElementsByTagName('participants')[0]);
+            call.features = this._parseCallFeatures(callElem.getElementsByTagName('features')[0]);
         }
         return call;
     },
@@ -676,4 +880,3 @@ Call.prototype._update = function(data, caller, called, actions, participants, f
     this.participants = participants;
     this.features = features;
 }
-
